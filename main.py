@@ -9,6 +9,8 @@
 import sys
 import unohelper
 import officehelper
+import requests
+import json
 from com.sun.star.task import XJobExecutor
 # The MainJob is a UNO component derived from unohelper.Base class
 # and also the XJobExecutor, the implemented interface
@@ -38,8 +40,27 @@ class MainJob(unohelper.Base, XJobExecutor):
             if selection.getCount() > 0:
                 # Get the first range of the selection
                 text_range = selection.getByIndex(0)
-                # Append 10 zeros at the end of the selected text
-                text_range.setString(text_range.getString() + "0000000000")
+
+                url = 'http://127.0.0.1:5000/v1/completions'
+                headers = {
+                    'Content-Type': 'application/json'
+                }
+                data = {
+                    'prompt': text_range.getString(),
+                    'max_tokens': 50,
+                    'temperature': 1,
+                    'top_p': 0.9,
+                    'seed': 10
+                }
+
+                response = requests.post(url, headers=headers, data=json.dumps(data))
+
+                if response.status_code == 200:
+                    # Append completion to selection
+                    text_range.setString(text_range.getString() +response.json()["choices"][0]["text"])
+                else:
+                    pass
+
         elif args == "EditSelection":
             # Access the current selection
             selection = model.CurrentController.getSelection()

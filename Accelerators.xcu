@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:install="http://openoffice.org/2004/installation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" oor:name="Accelerators" oor:package="org.openoffice.Office">
+  <node oor:name="PrimaryKeys">
+    <node oor:name="Modules">
+	    <node oor:name="com.sun.star.text.TextDocument">
+   
+
+        <node oor:name="V_SHIFT_MOD1" oor:op="replace">
+            <prop oor:name="Command">
+						<value xml:lang="en-US">service:org.extension.sample.do?ExtendSelection</value>
+				</prop>
+        </node>
+		
+      </node>
+    </node>
+  </node>
+
+</oor:component-data>
