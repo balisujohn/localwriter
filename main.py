@@ -12,6 +12,7 @@ import officehelper
 import requests
 import json
 from com.sun.star.task import XJobExecutor
+
 # The MainJob is a UNO component derived from unohelper.Base class
 # and also the XJobExecutor, the implemented interface
 class MainJob(unohelper.Base, XJobExecutor):
@@ -32,22 +33,22 @@ class MainJob(unohelper.Base, XJobExecutor):
         if not hasattr(model, "Text"):
             model = self.desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ())
         text = model.Text
-        cursor = text.createTextCursor()
-                
+        cursor = model.CurrentController.getViewCursor()                
+       
         if args == "ExtendSelection":
             # Access the current selection
-            selection = model.CurrentController.getSelection()
-            if selection.getCount() > 0:
+            #selection = model.CurrentController.getSelection()
+            if len(cursor.getString()) > 0:
                 # Get the first range of the selection
-                text_range = selection.getByIndex(0)
+                #text_range = selection.getByIndex(0)
 
                 url = 'http://127.0.0.1:5000/v1/completions'
                 headers = {
                     'Content-Type': 'application/json'
                 }
                 data = {
-                    'prompt': text_range.getString(),
-                    'max_tokens': 50,
+                    'prompt': cursor.getString(),
+                    'max_tokens': 70,
                     'temperature': 1,
                     'top_p': 0.9,
                     'seed': 10
@@ -57,7 +58,19 @@ class MainJob(unohelper.Base, XJobExecutor):
 
                 if response.status_code == 200:
                     # Append completion to selection
-                    text_range.setString(text_range.getString() +response.json()["choices"][0]["text"])
+                    selected_text = cursor.getString()
+                    new_text = selected_text + response.json()["choices"][0]["text"]
+
+                    # Set the new text
+                    cursor.setString(new_text)
+
+                    # Set the cursor to select the newly added text and original text
+                    start = cursor.getStart()
+                    end = cursor.getEnd() + len(response.json()["choices"][0]["text"])
+                    cursor.setRange(start, end)
+
+
+                    #text_range.setString(text_range.getString() + + str(start_index) + str(end_index))
                 else:
                     pass
 

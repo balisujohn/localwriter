@@ -5,7 +5,7 @@
 	    <node oor:name="com.sun.star.text.TextDocument">
    
 
-        <node oor:name="V_SHIFT_MOD1" oor:op="replace">
+        <node oor:name="Q_MOD1" oor:op="replace">
             <prop oor:name="Command">
 						<value xml:lang="en-US">service:org.extension.sample.do?ExtendSelection</value>
 				</prop>
