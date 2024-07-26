@@ -1,4 +1,4 @@
-# localwriter: A LibreOffice extension for local generative AI
+# localwriter: A LibreOffice Writer extension for local generative AI
 
 Consider donating to support development: https://ko-fi.com/johnbalis
 
