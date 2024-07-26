@@ -1,4 +1,4 @@
-# localwriter
+# localwriter: A LibreOffice extension for local generative AI
 
 Consider donating to support development: https://ko-fi.com/johnbalis
 
@@ -16,9 +16,11 @@ Some example use cases for this include, writing a story or an email given a par
 ### Edit Selection
 A dialog box appears to prompt the user for instructions about how to edit the selected text, then the selected text is replaced by the edited text. 
 
-So examples for use cases for this include changing the tone of an email, translating text to a different language, and semantically editing a scene in a story. 
+Some examples for use cases for this include changing the tone of an email, translating text to a different language, and semantically editing a scene in a story. 
 
 ## Setup
+
+First go to tags, and download the most recent version of `localwriter.oxt`. 
 
 In libreoffice, Navigate to Tools, then Extensions Manager, then click `Add` and find the `localwriter.oxt` file in your filesystme. You will be directed to read the license then the extension should be installed.
 
