@@ -1,16 +1,9 @@
-# -*- tab-width: 4; indent-tabs-mode: nil; py-indent-offset: 4 -*-
-#
-# This file is part of the LibreOffice project.
-#
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-#
 import sys
 import unohelper
 import officehelper
-import requests
 import json
+import urllib.request
+import urllib.parse
 from com.sun.star.task import XJobExecutor
 from com.sun.star.awt import MessageBoxButtons as MSG_BUTTONS
 
@@ -103,87 +96,95 @@ class MainJob(unohelper.Base, XJobExecutor):
             model = self.desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ())
         text = model.Text
         cursor = model.CurrentController.getViewCursor()                
-       
+        selection = model.CurrentController.getSelection()
+
         if args == "ExtendSelection":
             # Access the current selection
             #selection = model.CurrentController.getSelection()
             if len(cursor.getString()) > 0:
                 # Get the first range of the selection
                 #text_range = selection.getByIndex(0)
+                try:
+                    url = 'http://127.0.0.1:5000/v1/completions'
+                    headers = {
+                        'Content-Type': 'application/json'
+                    }
+                    data = {
+                        'prompt': cursor.getString(),
+                        'max_tokens': 70,
+                        'temperature': 1,
+                        'top_p': 0.9,
+                        'seed': 10
+                    }
 
-                url = 'http://127.0.0.1:5000/v1/completions'
-                headers = {
-                    'Content-Type': 'application/json'
-                }
-                data = {
-                    'prompt': cursor.getString(),
-                    'max_tokens': 70,
-                    'temperature': 1,
-                    'top_p': 0.9,
-                    'seed': 10
-                }
+                    # Convert data to JSON format
+                    json_data = json.dumps(data).encode('utf-8')
 
-                response = requests.post(url, headers=headers, data=json.dumps(data))
+                    # Create a request object with the URL, data, and headers
+                    request = urllib.request.Request(url, data=json_data, headers=headers, method='POST')
 
-                if response.status_code == 200:
+                    # Send the request and read the response
+                    with urllib.request.urlopen(request) as response:
+                        response_data = response.read()
+
+                    # If needed, decode the response data
+                    response = json.loads(response_data.decode('utf-8'))
+
                     # Append completion to selection
                     selected_text = cursor.getString()
-                    new_text = selected_text + response.json()["choices"][0]["text"]
+                    new_text = selected_text + response["choices"][0]["text"]
 
                     # Set the new text
                     cursor.setString(new_text)
-
-                    # Set the cursor to select the newly added text and original text
-                    start = cursor.getStart()
-                    end = cursor.getEnd() + len(response.json()["choices"][0]["text"])
-                    cursor.setRange(start, end)
-
-
-                    #text_range.setString(text_range.getString() + + str(start_index) + str(end_index))
-                else:
-                    pass
+            
+                except Exception as e:
+                    text_range = selection.getByIndex(0)
+                    # Append the user input to the selected text
+                    text_range.setString(text_range.getString() + ": " + str(e))
 
         elif args == "EditSelection":
             # Access the current selection
-            selection = model.CurrentController.getSelection()
             
         
             try:
                 user_input= self.input_box("Please enter edit instructions!", "Input", "")
                 text_range = selection.getByIndex(0)
                 #text_range.setString(text_range.getString() + ": " + user_input)
-                
                 url = 'http://127.0.0.1:5000/v1/completions'
+
                 headers = {
                     'Content-Type': 'application/json'
                 }
+
                 data = {
-		        	'prompt': "ORIGINAL VERSION:\n" + cursor.getString() + "\n Below is an edited version according to the following instructions. There are no comments in the edited version. The edited version is followed by the end of the document: \n"+user_input+"\nEDITED VERSION:\n",   
+                    'prompt': "ORIGINAL VERSION:\n" + cursor.getString() + "\n Below is an edited version according to the following instructions. There are no comments in the edited version. The edited version is followed by the end of the document: \n" + user_input + "\nEDITED VERSION:\n",
                     'max_tokens': len(cursor.getString()),
                     'temperature': 1,
                     'top_p': 0.9,
                     'seed': 10
                 }
 
-                response = requests.post(url, headers=headers, data=json.dumps(data))
+                # Convert data to JSON format
+                json_data = json.dumps(data).encode('utf-8')
 
-                if response.status_code == 200:
-                    # Append completion to selection
-                    selected_text = cursor.getString()
-                    new_text = response.json()["choices"][0]["text"]
+                # Create a request object with the URL, data, and headers
+                request = urllib.request.Request(url, data=json_data, headers=headers, method='POST')
 
-                    # Set the new text
-                    cursor.setString(new_text)
+                # Send the request and read the response
+                with urllib.request.urlopen(request) as response:
+                    response_data = response.read()
 
-                    # Set the cursor to select the newly added text and original text
-                    #start = cursor.getStart()
-                    #end = cursor.getEnd() + len(response.json()["choices"][0]["text"])
-                    #cursor.setRange(start, end)
+                # If needed, decode the response data
+                response = json.loads(response_data.decode('utf-8'))
 
 
-                    #text_range.setString(text_range.getString() + + str(start_index) + str(end_index))
-                else:
-                    pass
+                # Append completion to selection
+                selected_text = cursor.getString()
+                new_text = response["choices"][0]["text"]
+
+                # Set the new text
+                cursor.setString(new_text)
+
             except Exception as e:
                 text_range = selection.getByIndex(0)
                 # Append the user input to the selected text
