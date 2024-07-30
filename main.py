@@ -6,6 +6,10 @@ import urllib.request
 import urllib.parse
 from com.sun.star.task import XJobExecutor
 from com.sun.star.awt import MessageBoxButtons as MSG_BUTTONS
+import uno
+import os 
+from com.sun.star.beans import PropertyValue
+from com.sun.star.container import XNamed
 
 # The MainJob is a UNO component derived from unohelper.Base class
 # and also the XJobExecutor, the implemented interface
@@ -21,11 +25,138 @@ class MainJob(unohelper.Base, XJobExecutor):
             self.desktop = self.ctx.getServiceManager().createInstanceWithContext(
                 "com.sun.star.frame.Desktop", self.ctx)
     
+
+    def get_config(self,key,default):
+  
+        name_file ="localwriter.json"
+        #path_settings = create_instance('com.sun.star.util.PathSettings')
+        
+        
+        path_settings = self.sm.createInstanceWithContext('com.sun.star.util.PathSettings', self.ctx)
+
+        user_config_path = getattr(path_settings, "UserConfig")
+
+        if user_config_path.startswith('file://'):
+            user_config_path = str(uno.fileUrlToSystemPath(user_config_path))
+        
+        # Ensure the path ends with the filename
+        config_file_path = os.path.join(user_config_path, name_file)
+
+        # Check if the file exists
+        if not os.path.exists(config_file_path):
+            return default
+
+        # Try to load the JSON content from the file
+        try:
+            with open(config_file_path, 'r') as file:
+                config_data = json.load(file)
+        except (IOError, json.JSONDecodeError):
+            return default
+
+        # Return the value corresponding to the key, or the default value if the key is not found
+        return config_data.get(key, default)
+
+    def set_config(self, key, value):
+        name_file = "localwriter.json"
+        
+        path_settings = self.sm.createInstanceWithContext('com.sun.star.util.PathSettings', self.ctx)
+        user_config_path = getattr(path_settings, "UserConfig")
+
+        if user_config_path.startswith('file://'):
+            user_config_path = str(uno.fileUrlToSystemPath(user_config_path))
+
+        # Ensure the path ends with the filename
+        config_file_path = os.path.join(user_config_path, name_file)
+
+        # Load existing configuration if the file exists
+        if os.path.exists(config_file_path):
+            try:
+                with open(config_file_path, 'r') as file:
+                    config_data = json.load(file)
+            except (IOError, json.JSONDecodeError):
+                config_data = {}
+        else:
+            config_data = {}
+
+        # Update the configuration with the new key-value pair
+        config_data[key] = value
+
+        # Write the updated configuration back to the file
+        try:
+            with open(config_file_path, 'w') as file:
+                json.dump(config_data, file, indent=4)
+        except IOError as e:
+            # Handle potential IO errors (optional)
+            print(f"Error writing to {config_file_path}: {e}")
+
+
     #retrieved from https://wiki.documentfoundation.org/Macros/General/IO_to_Screen
     #License: Creative Commons Attribution-ShareAlike 3.0 Unported License,
     #License: The Document Foundation  https://creativecommons.org/licenses/by-sa/3.0/
     #begin sharealike section 
     def input_box(self,message, title="", default="", x=None, y=None):
+        """ Shows dialog with input box.
+            @param message message to show on the dialog
+            @param title window title
+            @param default default value
+            @param x optional dialog position in twips
+            @param y optional dialog position in twips
+            @return string if OK button pushed, otherwise zero length string
+        """
+        WIDTH = 600
+        HORI_MARGIN = VERT_MARGIN = 8
+        BUTTON_WIDTH = 100
+        BUTTON_HEIGHT = 26
+        HORI_SEP = VERT_SEP = 8
+        LABEL_HEIGHT = BUTTON_HEIGHT * 2 + 5
+        EDIT_HEIGHT = 24
+        HEIGHT = VERT_MARGIN * 2 + LABEL_HEIGHT + VERT_SEP + EDIT_HEIGHT
+        import uno
+        from com.sun.star.awt.PosSize import POS, SIZE, POSSIZE
+        from com.sun.star.awt.PushButtonType import OK, CANCEL
+        from com.sun.star.util.MeasureUnit import TWIP
+        ctx = uno.getComponentContext()
+        def create(name):
+            return ctx.getServiceManager().createInstanceWithContext(name, ctx)
+        dialog = create("com.sun.star.awt.UnoControlDialog")
+        dialog_model = create("com.sun.star.awt.UnoControlDialogModel")
+        dialog.setModel(dialog_model)
+        dialog.setVisible(False)
+        dialog.setTitle(title)
+        dialog.setPosSize(0, 0, WIDTH, HEIGHT, SIZE)
+        def add(name, type, x_, y_, width_, height_, props):
+            model = dialog_model.createInstance("com.sun.star.awt.UnoControl" + type + "Model")
+            dialog_model.insertByName(name, model)
+            control = dialog.getControl(name)
+            control.setPosSize(x_, y_, width_, height_, POSSIZE)
+            for key, value in props.items():
+                setattr(model, key, value)
+        label_width = WIDTH - BUTTON_WIDTH - HORI_SEP - HORI_MARGIN * 2
+        add("label", "FixedText", HORI_MARGIN, VERT_MARGIN, label_width, LABEL_HEIGHT, 
+            {"Label": str(message), "NoLabel": True})
+        add("btn_ok", "Button", HORI_MARGIN + label_width + HORI_SEP, VERT_MARGIN, 
+                BUTTON_WIDTH, BUTTON_HEIGHT, {"PushButtonType": OK, "DefaultButton": True})
+        add("edit", "Edit", HORI_MARGIN, LABEL_HEIGHT + VERT_MARGIN + VERT_SEP, 
+                WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(default)})
+        frame = create("com.sun.star.frame.Desktop").getCurrentFrame()
+        window = frame.getContainerWindow() if frame else None
+        dialog.createPeer(create("com.sun.star.awt.Toolkit"), window)
+        if not x is None and not y is None:
+            ps = dialog.convertSizeToPixel(uno.createUnoStruct("com.sun.star.awt.Size", x, y), TWIP)
+            _x, _y = ps.Width, ps.Height
+        elif window:
+            ps = window.getPosSize()
+            _x = ps.Width / 2 - WIDTH / 2
+            _y = ps.Height / 2 - HEIGHT / 2
+        dialog.setPosSize(_x, _y, 0, 0, POS)
+        edit = dialog.getControl("edit")
+        edit.setSelection(uno.createUnoStruct("com.sun.star.awt.Selection", 0, len(str(default))))
+        edit.setFocus()
+        ret = edit.getModel().Text if dialog.execute() else ""
+        dialog.dispose()
+        return ret
+
+    def settings_box(self,message, title="", default="", x=None, y=None):
         """ Shows dialog with input box.
             @param message message to show on the dialog
             @param title window title
@@ -105,7 +236,11 @@ class MainJob(unohelper.Base, XJobExecutor):
                 # Get the first range of the selection
                 #text_range = selection.getByIndex(0)
                 try:
-                    url = 'http://127.0.0.1:5000/v1/completions'
+
+
+                    url = self.get_config("endpoint", "http://127.0.0.1:5000") + "/v1/completions" 
+                    
+                    
                     headers = {
                         'Content-Type': 'application/json'
                     }
@@ -144,13 +279,11 @@ class MainJob(unohelper.Base, XJobExecutor):
 
         elif args == "EditSelection":
             # Access the current selection
-            
-        
             try:
                 user_input= self.input_box("Please enter edit instructions!", "Input", "")
                 text_range = selection.getByIndex(0)
                 #text_range.setString(text_range.getString() + ": " + user_input)
-                url = 'http://127.0.0.1:5000/v1/completions'
+                url = self.get_config("endpoint", "http://127.0.0.1:5000") + "/v1/completions" 
 
                 headers = {
                     'Content-Type': 'application/json'
@@ -190,6 +323,18 @@ class MainJob(unohelper.Base, XJobExecutor):
                 # Append the user input to the selected text
                 text_range.setString(text_range.getString() + ": " + str(e))
         
+        elif args == "settings":
+            try:
+
+                endpoint_url = self.settings_box("Endpoint URL/Port:", "Settings", self.get_config("endpoint","http://127.0.0.1:5000"))
+                
+                if endpoint_url.startswith("http"):
+                    self.set_config("endpoint", endpoint_url)
+
+            except Exception as e:
+                text_range = selection.getByIndex(0)
+                # Append the user input to the selected text
+                text_range.setString(text_range.getString() + ":error: " + str(e))
 
 # Starting from Python IDE
 def main():
