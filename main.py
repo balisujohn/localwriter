@@ -156,7 +156,7 @@ class MainJob(unohelper.Base, XJobExecutor):
         dialog.dispose()
         return ret
 
-    def settings_box(self,message, title="", default="", x=None, y=None):
+    def settings_box(self,title="", x=None, y=None):
         """ Shows dialog with input box.
             @param message message to show on the dialog
             @param title window title
@@ -172,7 +172,7 @@ class MainJob(unohelper.Base, XJobExecutor):
         HORI_SEP = VERT_SEP = 8
         LABEL_HEIGHT = BUTTON_HEIGHT * 2 + 5
         EDIT_HEIGHT = 24
-        HEIGHT = VERT_MARGIN * 2 + LABEL_HEIGHT + VERT_SEP + EDIT_HEIGHT
+        HEIGHT = VERT_MARGIN * 2 + LABEL_HEIGHT * 2 + VERT_SEP * 2 + EDIT_HEIGHT * 2
         import uno
         from com.sun.star.awt.PosSize import POS, SIZE, POSSIZE
         from com.sun.star.awt.PushButtonType import OK, CANCEL
@@ -194,12 +194,16 @@ class MainJob(unohelper.Base, XJobExecutor):
             for key, value in props.items():
                 setattr(model, key, value)
         label_width = WIDTH - BUTTON_WIDTH - HORI_SEP - HORI_MARGIN * 2
-        add("label", "FixedText", HORI_MARGIN, VERT_MARGIN, label_width, LABEL_HEIGHT, 
-            {"Label": str(message), "NoLabel": True})
+        add("label_endpoint", "FixedText", HORI_MARGIN, VERT_MARGIN, label_width, LABEL_HEIGHT, 
+            {"Label": "Endpoint URL/Port:", "NoLabel": True})
         add("btn_ok", "Button", HORI_MARGIN + label_width + HORI_SEP, VERT_MARGIN, 
                 BUTTON_WIDTH, BUTTON_HEIGHT, {"PushButtonType": OK, "DefaultButton": True})
-        add("edit", "Edit", HORI_MARGIN, LABEL_HEIGHT + VERT_MARGIN + VERT_SEP, 
-                WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(default)})
+        add("edit_endpoint", "Edit", HORI_MARGIN, LABEL_HEIGHT,
+                WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(self.get_config("endpoint","http://127.0.0.1:5000"))})
+        add("label_model", "FixedText", HORI_MARGIN, LABEL_HEIGHT + VERT_MARGIN + VERT_SEP + EDIT_HEIGHT, label_width, LABEL_HEIGHT, 
+            {"Label": "Model(Required by Ollama):", "NoLabel": True})
+        add("edit_model", "Edit", HORI_MARGIN, LABEL_HEIGHT + VERT_MARGIN + VERT_SEP + EDIT_HEIGHT + VERT_SEP + LABEL_HEIGHT, 
+                WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(self.get_config("model",""))})
         frame = create("com.sun.star.frame.Desktop").getCurrentFrame()
         window = frame.getContainerWindow() if frame else None
         dialog.createPeer(create("com.sun.star.awt.Toolkit"), window)
@@ -211,12 +215,23 @@ class MainJob(unohelper.Base, XJobExecutor):
             _x = ps.Width / 2 - WIDTH / 2
             _y = ps.Height / 2 - HEIGHT / 2
         dialog.setPosSize(_x, _y, 0, 0, POS)
-        edit = dialog.getControl("edit")
-        edit.setSelection(uno.createUnoStruct("com.sun.star.awt.Selection", 0, len(str(default))))
-        edit.setFocus()
-        ret = edit.getModel().Text if dialog.execute() else ""
+        
+        edit_endpoint = dialog.getControl("edit_endpoint")
+        edit_endpoint.setSelection(uno.createUnoStruct("com.sun.star.awt.Selection", 0, len(str(self.get_config("endpoint","http://127.0.0.1:5000")))))
+        
+        edit_model = dialog.getControl("edit_model")
+        edit_model.setSelection(uno.createUnoStruct("com.sun.star.awt.Selection", 0, len(str(self.get_config("model","")))))
+
+        
+        edit_endpoint.setFocus()
+
+        if dialog.execute():
+            result = {"endpoint":edit_endpoint.getModel().Text, "model": edit_model.getModel().Text}
+        else:
+            result = {"endpoint": "", "model": ""}
+
         dialog.dispose()
-        return ret
+        return result
     #end sharealike section 
 
     def trigger(self, args):
@@ -251,6 +266,11 @@ class MainJob(unohelper.Base, XJobExecutor):
                         'top_p': 0.9,
                         'seed': 10
                     }
+
+                    model = self.get_config("model", "")
+                    if model != "":
+                        data["model"] = model
+
 
                     # Convert data to JSON format
                     json_data = json.dumps(data).encode('utf-8')
@@ -297,6 +317,10 @@ class MainJob(unohelper.Base, XJobExecutor):
                     'seed': 10
                 }
 
+                model = self.get_config("model", "")
+                if model != "":
+                    data["model"] = model
+
                 # Convert data to JSON format
                 json_data = json.dumps(data).encode('utf-8')
 
@@ -326,10 +350,17 @@ class MainJob(unohelper.Base, XJobExecutor):
         elif args == "settings":
             try:
 
-                endpoint_url = self.settings_box("Endpoint URL/Port:", "Settings", self.get_config("endpoint","http://127.0.0.1:5000"))
+                result = self.settings_box("Settings")
                 
+                endpoint_url = result["endpoint"]
+                model = result["model"]
+
+
                 if endpoint_url.startswith("http"):
                     self.set_config("endpoint", endpoint_url)
+                
+                self.set_config("model", model)
+
 
             except Exception as e:
                 text_range = selection.getByIndex(0)
