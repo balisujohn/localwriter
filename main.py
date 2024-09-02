@@ -241,17 +241,18 @@ class MainJob(unohelper.Base, XJobExecutor):
         if not hasattr(model, "Text"):
             model = self.desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, ())
         text = model.Text
-        cursor = model.CurrentController.getViewCursor()                
         selection = model.CurrentController.getSelection()
+        text_range = selection.getByIndex(0)
+
+
 
         if args == "ExtendSelection":
             # Access the current selection
             #selection = model.CurrentController.getSelection()
-            if len(cursor.getString()) > 0:
+            if len(text_range.getString()) > 0:
                 # Get the first range of the selection
                 #text_range = selection.getByIndex(0)
                 try:
-
 
                     url = self.get_config("endpoint", "http://127.0.0.1:5000") + "/v1/completions" 
                     
@@ -260,7 +261,7 @@ class MainJob(unohelper.Base, XJobExecutor):
                         'Content-Type': 'application/json'
                     }
                     data = {
-                        'prompt': cursor.getString(),
+                        'prompt': text_range.getString(),
                         'max_tokens': 70,
                         'temperature': 1,
                         'top_p': 0.9,
@@ -286,11 +287,11 @@ class MainJob(unohelper.Base, XJobExecutor):
                     response = json.loads(response_data.decode('utf-8'))
 
                     # Append completion to selection
-                    selected_text = cursor.getString()
+                    selected_text = text_range.getString()
                     new_text = selected_text + response["choices"][0]["text"]
 
                     # Set the new text
-                    cursor.setString(new_text)
+                    text_range.setString(new_text)
             
                 except Exception as e:
                     text_range = selection.getByIndex(0)
@@ -301,7 +302,6 @@ class MainJob(unohelper.Base, XJobExecutor):
             # Access the current selection
             try:
                 user_input= self.input_box("Please enter edit instructions!", "Input", "")
-                text_range = selection.getByIndex(0)
                 #text_range.setString(text_range.getString() + ": " + user_input)
                 url = self.get_config("endpoint", "http://127.0.0.1:5000") + "/v1/completions" 
 
@@ -310,8 +310,8 @@ class MainJob(unohelper.Base, XJobExecutor):
                 }
 
                 data = {
-                    'prompt': "ORIGINAL VERSION:\n" + cursor.getString() + "\n Below is an edited version according to the following instructions. There are no comments in the edited version. The edited version is followed by the end of the document: \n" + user_input + "\nEDITED VERSION:\n",
-                    'max_tokens': len(cursor.getString()),
+                    'prompt': "ORIGINAL VERSION:\n" + text_range.getString() + "\n Below is an edited version according to the following instructions. There are no comments in the edited version. The edited version is followed by the end of the document: \n" + user_input + "\nEDITED VERSION:\n",
+                    'max_tokens': len(text_range.getString()),
                     'temperature': 1,
                     'top_p': 0.9,
                     'seed': 10
@@ -336,11 +336,11 @@ class MainJob(unohelper.Base, XJobExecutor):
 
 
                 # Append completion to selection
-                selected_text = cursor.getString()
+                selected_text = text_range.getString()
                 new_text = response["choices"][0]["text"]
 
                 # Set the new text
-                cursor.setString(new_text)
+                text_range.setString(new_text)
 
             except Exception as e:
                 text_range = selection.getByIndex(0)

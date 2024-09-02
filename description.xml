@@ -16,4 +16,11 @@
     <display-name>
         <name>localwriter</name>
     </display-name>
+
+  <icon>
+  <default xlink:href="assets/logo.png"/>
+  </icon>
+
+  
+
 </description>
