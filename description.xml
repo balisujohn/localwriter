@@ -4,7 +4,7 @@
   xmlns:dep="http://openoffice.org/extensions/description/2006"
   xmlns:xlink="http://www.w3.org/1999/xlink">
     <identifier value="org.extension.sample"/>
-    <version value="0.0.3"/>
+    <version value="0.0.4"/>
     <registration>
         <simple-license accept-by="admin" default-license-id="ID0" suppress-on-update="true" >
             <license-text xlink:href="registration/license.txt" lang="en" license-id="ID0" />
