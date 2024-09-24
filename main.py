@@ -169,10 +169,11 @@ class MainJob(unohelper.Base, XJobExecutor):
         HORI_MARGIN = VERT_MARGIN = 8
         BUTTON_WIDTH = 100
         BUTTON_HEIGHT = 26
-        HORI_SEP = VERT_SEP = 8
-        LABEL_HEIGHT = BUTTON_HEIGHT * 2 + 5
+        HORI_SEP = 8
+        VERT_SEP = 4
+        LABEL_HEIGHT = BUTTON_HEIGHT  + 5
         EDIT_HEIGHT = 24
-        HEIGHT = VERT_MARGIN * 2 + LABEL_HEIGHT * 2 + VERT_SEP * 2 + EDIT_HEIGHT * 2
+        HEIGHT = VERT_MARGIN * 6 + LABEL_HEIGHT * 6 + VERT_SEP * 8 + EDIT_HEIGHT * 6
         import uno
         from com.sun.star.awt.PosSize import POS, SIZE, POSSIZE
         from com.sun.star.awt.PushButtonType import OK, CANCEL
@@ -200,10 +201,34 @@ class MainJob(unohelper.Base, XJobExecutor):
                 BUTTON_WIDTH, BUTTON_HEIGHT, {"PushButtonType": OK, "DefaultButton": True})
         add("edit_endpoint", "Edit", HORI_MARGIN, LABEL_HEIGHT,
                 WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(self.get_config("endpoint","http://127.0.0.1:5000"))})
+        
         add("label_model", "FixedText", HORI_MARGIN, LABEL_HEIGHT + VERT_MARGIN + VERT_SEP + EDIT_HEIGHT, label_width, LABEL_HEIGHT, 
             {"Label": "Model(Required by Ollama):", "NoLabel": True})
-        add("edit_model", "Edit", HORI_MARGIN, LABEL_HEIGHT + VERT_MARGIN + VERT_SEP + EDIT_HEIGHT + VERT_SEP + LABEL_HEIGHT, 
+        add("edit_model", "Edit", HORI_MARGIN, LABEL_HEIGHT*2 + VERT_MARGIN + VERT_SEP*2 + EDIT_HEIGHT, 
                 WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(self.get_config("model",""))})
+        
+        add("label_extend_selection_max_tokens", "FixedText", HORI_MARGIN, LABEL_HEIGHT*3 + VERT_MARGIN + VERT_SEP*3 + EDIT_HEIGHT, label_width, LABEL_HEIGHT, 
+            {"Label": "Extend Selection Max Tokens:", "NoLabel": True})
+        add("edit_extend_selection_max_tokens", "Edit", HORI_MARGIN, LABEL_HEIGHT*4 + VERT_MARGIN + VERT_SEP*4 + EDIT_HEIGHT, 
+                WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(self.get_config("extend_selection_max_tokens","70"))})
+        
+        add("label_extend_selection_system_prompt", "FixedText", HORI_MARGIN, LABEL_HEIGHT*5 + VERT_MARGIN + VERT_SEP*5 + EDIT_HEIGHT, label_width, LABEL_HEIGHT, 
+            {"Label": "Extend Selection System Prompt:", "NoLabel": True})
+        add("edit_extend_selection_system_prompt", "Edit", HORI_MARGIN, LABEL_HEIGHT*6 + VERT_MARGIN + VERT_SEP*6 + EDIT_HEIGHT, 
+                WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(self.get_config("extend_selection_system_prompt",""))})
+
+        add("label_edit_selection_max_new_tokens", "FixedText", HORI_MARGIN, LABEL_HEIGHT*7 + VERT_MARGIN + VERT_SEP*7 + EDIT_HEIGHT, label_width, LABEL_HEIGHT, 
+            {"Label": "Edit Selection Max New Tokens:", "NoLabel": True})
+        add("edit_edit_selection_max_new_tokens", "Edit", HORI_MARGIN, LABEL_HEIGHT*8 + VERT_MARGIN + VERT_SEP*8 + EDIT_HEIGHT, 
+                WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(self.get_config("edit_selection_max_new_tokens",""))})
+
+        add("label_edit_selection_system_prompt", "FixedText", HORI_MARGIN, LABEL_HEIGHT*9 + VERT_MARGIN + VERT_SEP*9 + EDIT_HEIGHT, label_width, LABEL_HEIGHT, 
+            {"Label": "Edit Selection System Prompt:", "NoLabel": True})
+        add("edit_edit_selection_system_prompt", "Edit", HORI_MARGIN, LABEL_HEIGHT*10 + VERT_MARGIN + VERT_SEP*10 + EDIT_HEIGHT, 
+                WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(self.get_config("edit_selection_system_prompt",""))})
+
+
+
         frame = create("com.sun.star.frame.Desktop").getCurrentFrame()
         window = frame.getContainerWindow() if frame else None
         dialog.createPeer(create("com.sun.star.awt.Toolkit"), window)
@@ -222,11 +247,30 @@ class MainJob(unohelper.Base, XJobExecutor):
         edit_model = dialog.getControl("edit_model")
         edit_model.setSelection(uno.createUnoStruct("com.sun.star.awt.Selection", 0, len(str(self.get_config("model","")))))
 
-        
+        edit_extend_selection_max_tokens = dialog.getControl("edit_extend_selection_max_tokens")
+        edit_extend_selection_max_tokens.setSelection(uno.createUnoStruct("com.sun.star.awt.Selection", 0, len(str(self.get_config("extend_selection_max_tokens","70")))))
+
+
+        edit_extend_selection_system_prompt = dialog.getControl("edit_extend_selection_system_prompt")
+        edit_extend_selection_system_prompt.setSelection(uno.createUnoStruct("com.sun.star.awt.Selection", 0, len(str(self.get_config("extend_selection_system_prompt","")))))
+
+
+        edit_edit_selection_max_new_tokens = dialog.getControl("edit_edit_selection_max_new_tokens")
+        edit_edit_selection_max_new_tokens.setSelection(uno.createUnoStruct("com.sun.star.awt.Selection", 0, len(str(self.get_config("edit_selection_max_new_tokens","0")))))
+
+        edit_edit_selection_system_prompt = dialog.getControl("edit_edit_selection_system_prompt")
+        edit_edit_selection_system_prompt.setSelection(uno.createUnoStruct("com.sun.star.awt.Selection", 0, len(str(self.get_config("edit_selection_system_prompt","")))))
+
+
         edit_endpoint.setFocus()
 
         if dialog.execute():
-            result = {"endpoint":edit_endpoint.getModel().Text, "model": edit_model.getModel().Text}
+            result = {"endpoint":edit_endpoint.getModel().Text, "model": edit_model.getModel().Text, "extend_selection_system_prompt": edit_extend_selection_system_prompt.getModel().Text, "edit_selection_system_prompt": edit_edit_selection_system_prompt.getModel().Text}
+            if edit_extend_selection_max_tokens.getModel().Text.isdigit():
+                result["extend_selection_max_tokens"] = int(edit_extend_selection_max_tokens.getModel().Text)
+            if edit_edit_selection_max_new_tokens.getModel().Text.isdigit():
+                result["edit_selection_max_new_tokens"] = int(edit_edit_selection_max_new_tokens.getModel().Text)
+
         else:
             result = {"endpoint": "", "model": ""}
 
@@ -260,9 +304,16 @@ class MainJob(unohelper.Base, XJobExecutor):
                     headers = {
                         'Content-Type': 'application/json'
                     }
+
+                    prompt = None
+                    if self.get_config("extend_selection_system_prompt", "") != "":
+                        prompt = "SYSTEM PROMPT\n" + self.get_config("extend_selection_system_prompt", "") + "\nEND SYSTEM PROMPT\n" + text_range.getString()
+                    else:
+                        prompt = text_range.getString()
+
                     data = {
-                        'prompt': text_range.getString(),
-                        'max_tokens': 70,
+                        'prompt': prompt,
+                        'max_tokens': self.get_config("extend_selection_max_tokens", 70),
                         'temperature': 1,
                         'top_p': 0.9,
                         'seed': 10
@@ -309,9 +360,15 @@ class MainJob(unohelper.Base, XJobExecutor):
                     'Content-Type': 'application/json'
                 }
 
+                prompt =  "ORIGINAL VERSION:\n" + text_range.getString() + "\n Below is an edited version according to the following instructions. There are no comments in the edited version. The edited version is followed by the end of the document: \n" + user_input + "\nEDITED VERSION:\n"
+
+                if self.get_config("edit_selection_system_prompt", "") != "":
+                    prompt = "SYSTEM PROMPT\n" + self.get_config("edit_selection_system_prompt","") + "\nEND SYSTEM PROMPT\n" + prompt
+
+
                 data = {
-                    'prompt': "ORIGINAL VERSION:\n" + text_range.getString() + "\n Below is an edited version according to the following instructions. There are no comments in the edited version. The edited version is followed by the end of the document: \n" + user_input + "\nEDITED VERSION:\n",
-                    'max_tokens': len(text_range.getString()),
+                    'prompt':prompt,
+                    'max_tokens': len(text_range.getString()) + self.get_config("edit_selection_max_new_tokens", 0), # this is a bit hacky, it's actually number of characters + max new tokens, so even if max new tokens is zero, max_tokens will often end up with more tokens than the selected text actually contains.
                     'temperature': 1,
                     'top_p': 0.9,
                     'seed': 10
@@ -354,6 +411,20 @@ class MainJob(unohelper.Base, XJobExecutor):
                 
                 endpoint_url = result["endpoint"]
                 model = result["model"]
+                
+
+                if "extend_selection_max_tokens" in result:
+                    self.set_config("extend_selection_max_tokens", result["extend_selection_max_tokens"])
+
+                if "extend_selection_system_prompt" in result:
+                    self.set_config("extend_selection_system_prompt", result["extend_selection_system_prompt"])
+
+                if "edit_selection_max_new_tokens" in result:
+                    self.set_config("edit_selection_max_new_tokens", result["edit_selection_max_new_tokens"])
+
+                if "edit_selection_system_prompt" in result:
+                    self.set_config("edit_selection_system_prompt", result["edit_selection_system_prompt"])
+
 
 
                 if endpoint_url.startswith("http"):
