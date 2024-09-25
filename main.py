@@ -272,7 +272,7 @@ class MainJob(unohelper.Base, XJobExecutor):
                 result["edit_selection_max_new_tokens"] = int(edit_edit_selection_max_new_tokens.getModel().Text)
 
         else:
-            result = {"endpoint": "", "model": ""}
+            result = {}
 
         dialog.dispose()
         return result
@@ -408,11 +408,7 @@ class MainJob(unohelper.Base, XJobExecutor):
             try:
 
                 result = self.settings_box("Settings")
-                
-                endpoint_url = result["endpoint"]
-                model = result["model"]
-                
-
+                                
                 if "extend_selection_max_tokens" in result:
                     self.set_config("extend_selection_max_tokens", result["extend_selection_max_tokens"])
 
@@ -425,12 +421,11 @@ class MainJob(unohelper.Base, XJobExecutor):
                 if "edit_selection_system_prompt" in result:
                     self.set_config("edit_selection_system_prompt", result["edit_selection_system_prompt"])
 
+                if "endpoint" in result and result["endpoint"].startswith("http"):
+                    self.set_config("endpoint", result["endpoint"])
 
-
-                if endpoint_url.startswith("http"):
-                    self.set_config("endpoint", endpoint_url)
-                
-                self.set_config("model", model)
+                if "model" in result:                
+                    self.set_config("model", result["model"])
 
 
             except Exception as e:

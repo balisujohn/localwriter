@@ -24,11 +24,16 @@ First go to tags, and download the most recent version of `localwriter.oxt`.
 
 In libreoffice, Navigate to Tools, then Extensions Manager, then click `Add` and find the `localwriter.oxt` file in your filesystem. You will be directed to read the license then the extension should be installed.
 
-You will also need to setup `text-generation-webui`, and enable the local openai API (note that this just means in this mode `text-generation-webui` will respond in the same format as open AI, all the computation still happens on your computer!). You can use whatever model you want, but I'd recommend openchat3.5 if you don't have a particular model in mind and have only 8 gigabytes of VRAM. Once the OpenAI-style API is running on localhost port 5000, localwriter should work with no additional steps. If you are using Ollama as a backend, you need to specify the `model` you are using in the settings.
+You will also need to setup `text-generation-webui`, and enable the local openai API (note that this just means in this mode `text-generation-webui` will respond in the same format as open AI, all the computation still happens on your computer!). You can use whatever model you want, but I'd recommend openchat3.5 if you don't have a particular model in mind and have only 8 gigabytes of VRAM. Once the OpenAI-style API is running on localhost port 5000, localwriter should work with no additional steps. If you are using Ollama as a backend, you need to specify the `model` you are using in the settings, and likely set the endpoint url/point to Ollama's default which is `http://127.0.0.1:11434`.
 
 ## Hotkeys
 
 Extend Selection is bound to ctrl + q by default, and Edit Selection is bound to ctrl + e by default. 
+
+## Settings
+
+In the settings, you can set the maximum number of additional tokens for extend selection and the maximum additional tokens (above the number of letters in the original selection) for edit selection. You can also individually set the "system prompt" for edit selection and extend selection in settings, and this prompt will always be invisibly be appended before the selection from your document send to the language model with each of these commands. For example, if you want to use a particular writing style, you can place a sample of your writing in extend selection system prompt, along with a directive to always write in a simlar style.
+
 
 ## License 
 
