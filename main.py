@@ -625,10 +625,17 @@ def main():
 # Starting from command line
 if __name__ == "__main__":
     main()
+from prompt_function import PromptFunction
+
 # pythonloader loads a static g_ImplementationHelper variable
 g_ImplementationHelper = unohelper.ImplementationHelper()
 g_ImplementationHelper.addImplementation(
     MainJob,  # UNO object class
     "org.extension.sample.do",  # implementation name (customize for yourself)
     ("com.sun.star.task.Job",), )  # implemented services (only 1)
+g_ImplementationHelper.addImplementation(
+    PromptFunction,
+    "org.extension.sample.PromptFunction",
+    ("com.sun.star.sheet.AddIn",),
+)
 # vim: set shiftwidth=4 softtabstop=4 expandtab:
