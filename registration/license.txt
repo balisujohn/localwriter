@@ -1,5 +1,7 @@
 
 Consider donating to support development: https://ko-fi.com/johnbalis
+Contributors: 
+- https://github.com/MageDoc/
 
 Except where otherwise noted in source code, this software is provided with a MPL 2.0 license.
 

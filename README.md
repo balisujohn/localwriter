@@ -2,6 +2,9 @@
 
 Consider donating to support development: https://ko-fi.com/johnbalis
 
+Contributors:
+- https://github.com/MageDoc/
+
 ## About
 
 This is a LibreOffice Writer extension that enables inline generative editing with local inference. It's compatible with language models supported by `text-generation-webui` and `ollama`.
@@ -42,11 +45,15 @@ This extension provides two powerful commands for LibreOffice Writer:
 *   A dialog box appears to prompt the user for instructions about how to edit the selected text, then the selected text is replaced by the edited text.
 *   Some examples for use cases for this include changing the tone of an email, translating text to a different language, and semantically editing a scene in a story.
 
+### Calc PROMPT function
+
+**=PROMPT(message, [system_prompt], [model], [max_tokens])**
+
 ## Setup
 
 ### LibreOffice Extension Installation
 
-1.  Download the latest version of Localwriter via the [releases page](https://github.com/balisujohn/localwriter/releases).
+1.  Download the latest version of Localwriter via the [releases page](https://github.com/balis-john/localwriter/releases).
 2.  Open LibreOffice.
 3.  Navigate to `Tools > Extensions`.
 4.  Click `Add` and select the downloaded `.oxt` file.
@@ -65,7 +72,7 @@ After installation and model setup:
 
 1.  Enable the local OpenAI API (this ensures the API responds in a format similar to OpenAI).
 2.  Verify that the intended model is working (e.g., openchat3.5, suitable for 8GB VRAM setups).
-3.  Set the endpoint in Localwriter settings to `http://localhost:5000` (or the configured port). The default endpoint changed to Ollama's port (11434) in version 0.0.9, so text-generation-webui users must set this explicitly.
+3.  Set the endpoint in Localwriter to `localhost:5000` (or the configured port).
 
 #### Ollama
 
@@ -77,26 +84,11 @@ After installation and model setup:
 
 ## Settings
 
-Settings can be configured via the settings dialog in LibreOffice (localwriter menu > Settings).
+In the settings, you can configure:
 
-Configuration file location:
-- macOS: `~/Library/Application Support/LibreOffice/4/user/localwriter.json`
-- Linux: `~/.config/libreoffice/4/user/localwriter.json`
-- Windows: `%APPDATA%\LibreOffice\4\user\localwriter.json`
-
-### Available Settings
-
-*   **Endpoint URL**: The URL of your LLM server (default: `http://localhost:11434` for Ollama)
-*   **Model**: The model name (e.g., `llama2`, `gpt-3.5-turbo`)
-*   **API Key**: Authentication key for OpenAI-compatible endpoints (optional for local servers)
-*   **API Type**: `completions` (default) or `chat` — use `chat` for OpenAI or servers with a `/chat/completions` endpoint
-*   **Is OpenWebUI endpoint?**: Set to `true` if using OpenWebUI (changes API path from `/v1/` to `/api/`)
-*   **OpenAI Compatible Endpoint?**: Set to `true` for servers that strictly follow OpenAI format
-*   **Disable SSL Verification**: Set to `true` to skip certificate checks — only use for local servers with self-signed certs
-*   **Extend Selection Max Tokens**: Maximum number of tokens for text extension
-*   **Extend Selection System Prompt**: Instructions prepended to guide the model's style for extension
-*   **Edit Selection Max New Tokens**: Additional tokens allowed above original selection length
-*   **Edit Selection System Prompt**: Instructions for guiding text editing behavior
+*   Maximum number of additional tokens for "Extend Selection."
+*   Maximum number of additional tokens (above the number of letters in the original selection) for "Edit Selection."
+*   Custom "system prompts" for both "Extend Selection" and "Edit Selection." These prompts are prepended to the selection before sending it to the language model.  For example, you can use a sample of your writing to guide the model's style.
 
 ## Contributing
 
@@ -109,7 +101,7 @@ For developers who want to modify or contribute to Localwriter, you can run and 
 1. **Clone the Repository (if not already done):**
    - Clone the Localwriter repository to your local machine if you haven't already:
      ```
-     git clone https://github.com/balisujohn/localwriter.git
+     git clone https://github.com/balis-john/localwriter.git
      cd localwriter
      ```
 
@@ -142,11 +134,17 @@ For developers who want to modify or contribute to Localwriter, you can run and 
 6. **Unregister the Extension (Optional):**
    - If you need to remove the temporary registration, use:
      ```
-     unopkg remove org.extension.sample
+     unopkg remove org.extension.localwriter
      ```
-   - Replace `org.extension.sample` with the identifier from `description.xml` if different.
+   - Replace `org.extension.localwriter` with the identifier from `description.xml` if different.
 
 ### Building the Extension Package
+
+To generate the custom function UNO interface rdb from interface definition idl:
+
+```
+"c:\Program Files\LibreOffice\sdk\bin\unoidl-write.exe" "c:\Program Files\LibreOffice\program\types.rdb" "c:\Program Files\LibreOffice\program\types\offapi.rdb" idl\XPromptFunction.idl XPromptFunction.rdb
+```
 
 To create a distributable `.oxt` package:
 
@@ -156,10 +154,12 @@ In a terminal, change directory into the localwriter repository top-level direct
 zip -r localwriter.oxt \
   Accelerators.xcu \
   Addons.xcu \
+  CalcAddIn.xcu \
+  XPromptFunction.rdb \
   assets \
   description.xml \
   main.py \
-  pythonpath \
+  prompt_function.py \
   META-INF \
   registration \
   README.md
