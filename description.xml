@@ -3,7 +3,7 @@
   xmlns="http://openoffice.org/extensions/description/2006"
   xmlns:dep="http://openoffice.org/extensions/description/2006"
   xmlns:xlink="http://www.w3.org/1999/xlink">
-    <identifier value="org.extension.sample"/>
+    <identifier value="org.extension.localwriter"/>
     <version value="0.0.9"/>
     <registration>
         <simple-license accept-by="admin" default-license-id="ID0" suppress-on-update="true" >

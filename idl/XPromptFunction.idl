@@ -1,0 +1,13 @@
+#ifndef __org_extension_localwriter_PromptFunction_XPromptFunction_idl__
+#define __org_extension_localwriter_PromptFunction_XPromptFunction_idl__
+
+#include <com/sun/star/uno/XInterface.idl>
+
+module org { module extension { module localwriter { module PromptFunction {
+    interface XPromptFunction : com::sun::star::uno::XInterface
+    {
+        string prompt( [in] string message );
+    };
+}; }; }; };
+
+#endif

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  oor:name="CalcAddIns" oor:package="org.openoffice.Office">
+  <node oor:name="AddInInfo">
+    <node oor:name="org.extension.localwriter.PromptFunction" oor:op="replace">
+      <node oor:name="AddInFunctions">
+        <node oor:name="prompt" oor:op="replace">
+          <prop oor:name="DisplayName">
+            <value xml:lang="en-US">PROMPT</value>
+          </prop>
+          <prop oor:name="Description">
+            <value xml:lang="en-US">Generates text using an LLM</value>
+          </prop>
+          <prop oor:name="Category">
+            <value>Add-In</value>
+          </prop>
+          <node oor:name="Parameters">
+            <node oor:name="message" oor:op="replace">
+              <prop oor:name="DisplayName">
+                <value xml:lang="en-US">message</value>
+              </prop>
+              <prop oor:name="Description">
+                <value xml:lang="en-US">The prompt to send to the LLM</value>
+              </prop>
+            </node>
+          </node>
+        </node>
+      </node>
+    </node>
+  </node>
+</oor:component-data>
