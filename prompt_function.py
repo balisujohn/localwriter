@@ -1,11 +1,17 @@
-import uno
-import unohelper
-import json
-import urllib.request
+import sys
 import os
 
+# Ensure extension directory is on path so core can be imported
+_ext_dir = os.path.dirname(os.path.abspath(__file__))
+if _ext_dir not in sys.path:
+    sys.path.insert(0, _ext_dir)
+
+import uno
+import unohelper
+
 from org.extension.localwriter.PromptFunction import XPromptFunction
-from llm import build_api_request, make_ssl_context
+from core.config import get_config, get_api_config
+from core.api import LlmClient, format_error_for_display
 
 
 class PromptFunction(unohelper.Base, XPromptFunction):
@@ -70,58 +76,24 @@ class PromptFunction(unohelper.Base, XPromptFunction):
 
     def prompt(self, message):
         try:
-            endpoint = str(self.get_config("endpoint", "http://localhost:11434"))
-            api_key = str(self.get_config("api_key", ""))
-            api_type = str(self.get_config("api_type", "completions")).lower()
-            model = str(self.get_config("model", ""))
-            is_owui = self.get_config("is_openwebui", False)
-            openai_compat = self.get_config("openai_compatibility", False)
-            system_prompt = str(self.get_config("extend_selection_system_prompt", ""))
-            max_tokens = self.get_config("extend_selection_max_tokens", 70)
+            system_prompt = str(get_config(self.ctx, "extend_selection_system_prompt", ""))
+            max_tokens = get_config(self.ctx, "extend_selection_max_tokens", 70)
+            try:
+                max_tokens = int(max_tokens)
+            except (TypeError, ValueError):
+                max_tokens = 70
 
-            request = build_api_request(
-                message, endpoint, api_key, api_type, model,
-                is_owui, openai_compat, system_prompt, int(max_tokens))
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            messages.append({"role": "user", "content": message})
 
-            # Override stream to False — Calc needs the full response at once
-            body = json.loads(request.data.decode('utf-8'))
-            body['stream'] = False
-            request.data = json.dumps(body).encode('utf-8')
+            config = get_api_config(self.ctx)
+            client = LlmClient(config, self.ctx)
+            return client.chat_completion_sync(messages, max_tokens=max_tokens)
 
-            disable_ssl = self.get_config("disable_ssl_verification", False)
-            ssl_ctx = make_ssl_context(disable_ssl)
-
-            with urllib.request.urlopen(request, context=ssl_ctx) as response:
-                response_json = json.loads(response.read().decode('utf-8'))
-                if api_type == "chat":
-                    return response_json["choices"][0]["message"]["content"]
-                else:
-                    return response_json["choices"][0]["text"]
-
-        except urllib.error.HTTPError as e:
-            error_body = e.read().decode('utf-8')
-            return f"HTTP Error {e.code}: {error_body}"
-        except urllib.error.URLError as e:
-            return f"Connection error: {e.reason}"
         except Exception as e:
-            return f"Error: {e}"
-
-    def get_config(self, key, default):
-        name_file = "localwriter.json"
-        path_settings = self.ctx.getServiceManager().createInstanceWithContext(
-            'com.sun.star.util.PathSettings', self.ctx)
-        user_config_path = getattr(path_settings, "UserConfig")
-        if user_config_path.startswith('file://'):
-            user_config_path = str(uno.fileUrlToSystemPath(user_config_path))
-        config_file_path = os.path.join(user_config_path, name_file)
-        if not os.path.exists(config_file_path):
-            return default
-        try:
-            with open(config_file_path, 'r') as file:
-                config_data = json.load(file)
-        except (IOError, json.JSONDecodeError):
-            return default
-        return config_data.get(key, default)
+            return format_error_for_display(e)
 
     def getImplementationName(self):
         return "org.extension.localwriter.PromptFunction"

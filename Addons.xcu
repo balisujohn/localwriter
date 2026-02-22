@@ -14,7 +14,7 @@
               <value xml:lang="en-US">Extend Selection</value>
             </prop>
             <prop oor:name="URL">
-              <value>service:org.extension.sample.do?ExtendSelection</value>
+              <value>service:org.extension.localwriter.Main?ExtendSelection</value>
             </prop>
             <prop oor:name="Target" oor:type="xs:string">
               <value>_self</value>
@@ -25,7 +25,7 @@
               <value xml:lang="en-US">Edit Selection</value>
             </prop>
             <prop oor:name="URL">
-              <value>service:org.extension.sample.do?EditSelection</value>
+              <value>service:org.extension.localwriter.Main?EditSelection</value>
             </prop>
             <prop oor:name="Target" oor:type="xs:string">
               <value>_self</value>
@@ -36,7 +36,7 @@
               <value xml:lang="en-US">Settings</value>
             </prop>
             <prop oor:name="URL">
-              <value>service:org.extension.sample.do?settings</value>
+              <value>service:org.extension.localwriter.Main?settings</value>
             </prop>
             <prop oor:name="Target" oor:type="xs:string">
               <value>_self</value>

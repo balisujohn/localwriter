@@ -7,13 +7,13 @@
 
         <node oor:name="Q_MOD1" oor:op="replace">
             <prop oor:name="Command">
-						<value xml:lang="en-US">service:org.extension.sample.do?ExtendSelection</value>
+						<value xml:lang="en-US">service:org.extension.localwriter.Main?ExtendSelection</value>
 				</prop>
         </node>
 
         <node oor:name="E_MOD1" oor:op="replace">
             <prop oor:name="Command">
-						<value xml:lang="en-US">service:org.extension.sample.do?EditSelection</value>
+						<value xml:lang="en-US">service:org.extension.localwriter.Main?EditSelection</value>
 				</prop>
         </node>
 		
@@ -25,13 +25,13 @@
 
         <node oor:name="Q_MOD1" oor:op="replace">
             <prop oor:name="Command">
-						<value xml:lang="en-US">service:org.extension.sample.do?ExtendSelection</value>
+						<value xml:lang="en-US">service:org.extension.localwriter.Main?ExtendSelection</value>
 				</prop>
         </node>
 
         <node oor:name="E_MOD1" oor:op="replace">
             <prop oor:name="Command">
-						<value xml:lang="en-US">service:org.extension.sample.do?EditSelection</value>
+						<value xml:lang="en-US">service:org.extension.localwriter.Main?EditSelection</value>
 				</prop>
         </node>
 		

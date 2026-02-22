@@ -29,18 +29,20 @@ fi
 # Create the new package
 echo "Creating package ${EXTENSION_NAME}.oxt..."
 zip -r "${EXTENSION_NAME}.oxt" \
+    core/ \
     Accelerators.xcu \
     Addons.xcu \
     CalcAddIn.xcu \
     XPromptFunction.rdb \
-    assets \
+    assets/ \
     description.xml \
     main.py \
     prompt_function.py \
-    pythonpath \
-    META-INF \
-    registration \
-    README.md
+    pythonpath/ \
+    META-INF/ \
+    registration/ \
+    README.md \
+    -x "*.git*" -x "*.DS_Store" -x "*/__pycache__/*" -x "*__pycache__*" -x "*.pyc"
 
 if [ $? -eq 0 ]; then
     echo "Package created successfully: ${EXTENSION_NAME}.oxt"

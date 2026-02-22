@@ -1,42 +1,30 @@
 import sys
+import os
+
+# Ensure extension directory is on path so core can be imported
+_ext_dir = os.path.dirname(os.path.abspath(__file__))
+if _ext_dir not in sys.path:
+    sys.path.insert(0, _ext_dir)
+
 import unohelper
 import officehelper
 import json
-import urllib.request
-import urllib.parse
-import ssl
 from com.sun.star.task import XJobExecutor
 from com.sun.star.awt import MessageBoxButtons as MSG_BUTTONS
 import uno
-import os
-import logging
 import re
 
 from com.sun.star.beans import PropertyValue
 from com.sun.star.container import XNamed
 
-from llm import (as_bool, is_openai_compatible, build_api_request,
-                 extract_content, make_ssl_context, stream_response)
+from core.config import get_config, set_config, as_bool, get_api_config
+from core.api import LlmClient
+from core.logging import log_to_file, set_debug_logging
 
 
-_debug_logging_enabled = False
-
-def log_to_file(message):
-    if not _debug_logging_enabled:
-        return
-    log_dir = os.path.join(os.path.expanduser('~'), '.localwriter')
-    os.makedirs(log_dir, exist_ok=True)
-    log_file_path = os.path.join(log_dir, 'log.txt')
-    logging.basicConfig(filename=log_file_path, level=logging.INFO, format='%(asctime)s - %(message)s')
-    logging.info(message)
-
-
-# The MainJob is a UNO component derived from unohelper.Base class
-# and also the XJobExecutor, the implemented interface
 class MainJob(unohelper.Base, XJobExecutor):
     def __init__(self, ctx):
         self.ctx = ctx
-        # handling different situations (inside LibreOffice or other process)
         try:
             self.sm = ctx.getServiceManager()
             self.desktop = XSCRIPTCONTEXT.getDesktop()
@@ -45,110 +33,27 @@ class MainJob(unohelper.Base, XJobExecutor):
             self.sm = ctx.ServiceManager
             self.desktop = self.ctx.getServiceManager().createInstanceWithContext(
                 "com.sun.star.frame.Desktop", self.ctx)
-    
 
-    def get_config(self,key,default):
-  
-        name_file ="localwriter.json"
-        #path_settings = create_instance('com.sun.star.util.PathSettings')
-        
-        
-        path_settings = self.sm.createInstanceWithContext('com.sun.star.util.PathSettings', self.ctx)
-
-        user_config_path = getattr(path_settings, "UserConfig")
-
-        if user_config_path.startswith('file://'):
-            user_config_path = str(uno.fileUrlToSystemPath(user_config_path))
-        
-        # Ensure the path ends with the filename
-        config_file_path = os.path.join(user_config_path, name_file)
-
-        # Check if the file exists
-        if not os.path.exists(config_file_path):
-            return default
-
-        # Try to load the JSON content from the file
-        try:
-            with open(config_file_path, 'r') as file:
-                config_data = json.load(file)
-        except (IOError, json.JSONDecodeError):
-            return default
-
-        # Return the value corresponding to the key, or the default value if the key is not found
-        return config_data.get(key, default)
+    def get_config(self, key, default):
+        return get_config(self.ctx, key, default)
 
     def set_config(self, key, value):
-        name_file = "localwriter.json"
-        
-        path_settings = self.sm.createInstanceWithContext('com.sun.star.util.PathSettings', self.ctx)
-        user_config_path = getattr(path_settings, "UserConfig")
-
-        if user_config_path.startswith('file://'):
-            user_config_path = str(uno.fileUrlToSystemPath(user_config_path))
-
-        # Ensure the path ends with the filename
-        config_file_path = os.path.join(user_config_path, name_file)
-
-        # Load existing configuration if the file exists
-        if os.path.exists(config_file_path):
-            try:
-                with open(config_file_path, 'r') as file:
-                    config_data = json.load(file)
-            except (IOError, json.JSONDecodeError):
-                config_data = {}
-        else:
-            config_data = {}
-
-        # Update the configuration with the new key-value pair
-        config_data[key] = value
-
-        # Write the updated configuration back to the file
-        try:
-            with open(config_file_path, 'w') as file:
-                json.dump(config_data, file, indent=4)
-        except IOError as e:
-            # Handle potential IO errors (optional)
-            print(f"Error writing to {config_file_path}: {e}")
+        set_config(self.ctx, key, value)
 
     def _as_bool(self, value):
         return as_bool(value)
 
-    def _is_openai_compatible(self):
-        endpoint = str(self.get_config("endpoint", "http://localhost:11434"))
-        compatibility_flag = self.get_config("openai_compatibility", False)
-        return is_openai_compatible(endpoint, compatibility_flag)
-
-    def make_api_request(self, prompt, system_prompt="", max_tokens=70, api_type=None):
-        endpoint = str(self.get_config("endpoint", "http://localhost:11434"))
-        api_key = str(self.get_config("api_key", ""))
-        if api_type is None:
-            api_type = str(self.get_config("api_type", "completions")).lower()
-        model = str(self.get_config("model", ""))
-        is_owui = self.get_config("is_openwebui", False)
-        openai_compat = self.get_config("openai_compatibility", False)
-        return build_api_request(prompt, endpoint, api_key, api_type, model,
-                                 is_owui, openai_compat, system_prompt, max_tokens,
-                                 log_fn=log_to_file)
-
-    def extract_content_from_response(self, chunk, api_type="completions"):
-        return extract_content(chunk, api_type)
-
-    def get_ssl_context(self):
-        disable = self.get_config("disable_ssl_verification", False)
-        return make_ssl_context(disable)
-
-    def stream_request(self, request, api_type, append_callback):
-        toolkit = self.ctx.getServiceManager().createInstanceWithContext(
-            "com.sun.star.awt.Toolkit", self.ctx
-        )
-        ssl_ctx = self.get_ssl_context()
-        stream_response(request, api_type, ssl_ctx, append_callback,
-                        on_idle=toolkit.processEventsToIdle, log_fn=log_to_file)
+    def _make_client(self):
+        """Create an LlmClient from current config."""
+        config = get_api_config(self.ctx)
+        config["disable_ssl_verification"] = self._as_bool(
+            self.get_config("disable_ssl_verification", False))
+        return LlmClient(config, self.ctx)
 
     #retrieved from https://wiki.documentfoundation.org/Macros/General/IO_to_Screen
     #License: Creative Commons Attribution-ShareAlike 3.0 Unported License,
     #License: The Document Foundation  https://creativecommons.org/licenses/by-sa/3.0/
-    #begin sharealike section 
+    #begin sharealike section
     def input_box(self,message, title="", default="", x=None, y=None):
         """ Shows dialog with input box.
             @param message message to show on the dialog
@@ -187,11 +92,11 @@ class MainJob(unohelper.Base, XJobExecutor):
             for key, value in props.items():
                 setattr(model, key, value)
         label_width = WIDTH - BUTTON_WIDTH - HORI_SEP - HORI_MARGIN * 2
-        add("label", "FixedText", HORI_MARGIN, VERT_MARGIN, label_width, LABEL_HEIGHT, 
+        add("label", "FixedText", HORI_MARGIN, VERT_MARGIN, label_width, LABEL_HEIGHT,
             {"Label": str(message), "NoLabel": True})
-        add("btn_ok", "Button", HORI_MARGIN + label_width + HORI_SEP, VERT_MARGIN, 
+        add("btn_ok", "Button", HORI_MARGIN + label_width + HORI_SEP, VERT_MARGIN,
                 BUTTON_WIDTH, BUTTON_HEIGHT, {"PushButtonType": OK, "DefaultButton": True})
-        add("edit", "Edit", HORI_MARGIN, LABEL_HEIGHT + VERT_MARGIN + VERT_SEP, 
+        add("edit", "Edit", HORI_MARGIN, LABEL_HEIGHT + VERT_MARGIN + VERT_SEP,
                 WIDTH - HORI_MARGIN * 2, EDIT_HEIGHT, {"Text": str(default)})
         frame = create("com.sun.star.frame.Desktop").getCurrentFrame()
         window = frame.getContainerWindow() if frame else None
@@ -238,7 +143,6 @@ class MainJob(unohelper.Base, XJobExecutor):
     def _read_dialog_config(self, controls):
         """Read all control values and return a config dict."""
         result = {}
-        # Backend preset -> api_type, is_openwebui, openai_compatibility
         sel = controls["backend"].getModel().SelectedItems
         backend_idx = sel[0] if sel else 0
         preset = self.BACKEND_PRESETS[backend_idx]
@@ -251,14 +155,11 @@ class MainJob(unohelper.Base, XJobExecutor):
             result["is_openwebui"] = self._as_bool(self.get_config("is_openwebui", False))
             result["openai_compatibility"] = self._as_bool(
                 self.get_config("openai_compatibility", False))
-        # Text fields
         for name in ["endpoint", "model", "api_key",
                      "extend_selection_system_prompt", "edit_selection_system_prompt"]:
             result[name] = controls[name].getModel().Text
-        # Checkboxes
         for name in ["disable_ssl_verification", "debug_logging"]:
             result[name] = controls[name].getModel().State == 1
-        # Numeric fields
         for name in ["extend_selection_max_tokens", "edit_selection_max_new_tokens"]:
             text = controls[name].getModel().Text
             result[name] = int(text) if text.isdigit() else 0
@@ -343,10 +244,10 @@ class MainJob(unohelper.Base, XJobExecutor):
 
         # --- Checkboxes ---
         disable_ssl = self._as_bool(self.get_config("disable_ssl_verification", False))
-        debug_log = self._as_bool(self.get_config("debug_logging", False))
+        debug_log_val = self._as_bool(self.get_config("debug_logging", False))
         checkbox_fields = [
             ("disable_ssl_verification", "Disable SSL verification (exposes API keys to interception)", disable_ssl),
-            ("debug_logging", "Enable debug logging to ~~/.localwriter/log.txt", debug_log),
+            ("debug_logging", "Enable debug logging to ~~/.localwriter/log.txt", debug_log_val),
         ]
         for name, label, checked in checkbox_fields:
             controls[name] = add(f"cb_{name}", "CheckBox", HORI_MARGIN, y,
@@ -418,7 +319,6 @@ class MainJob(unohelper.Base, XJobExecutor):
             config = settings_box_self._read_dialog_config(controls)
             json_ctrl.getModel().Text = json.dumps(config, indent=2)
 
-        # Show initial JSON preview
         update_json_preview()
 
         # --- Backend change listener: auto-fill endpoint ---
@@ -431,7 +331,7 @@ class MainJob(unohelper.Base, XJobExecutor):
                     return
                 idx = sel[0]
                 preset = presets[idx]
-                if preset[4] is not None:  # has default endpoint
+                if preset[4] is not None:
                     controls["endpoint"].getModel().Text = preset[4]
                 update_json_preview()
 
@@ -440,7 +340,7 @@ class MainJob(unohelper.Base, XJobExecutor):
 
         controls["backend"].addItemListener(BackendListener())
 
-        # --- Refresh button listener: update preview from current controls ---
+        # --- Refresh button listener ---
         class RefreshListener(unohelper.Base, XActionListener):
             def actionPerformed(self, event):
                 update_json_preview()
@@ -452,7 +352,6 @@ class MainJob(unohelper.Base, XJobExecutor):
 
         controls["endpoint"].setFocus()
 
-        # --- Execute and collect results ---
         if dialog.execute():
             result = self._read_dialog_config(controls)
         else:
@@ -473,8 +372,8 @@ class MainJob(unohelper.Base, XJobExecutor):
             self.set_config(key, value)
 
     def trigger(self, args):
-        global _debug_logging_enabled
-        _debug_logging_enabled = self._as_bool(self.get_config("debug_logging", False))
+        # Init debug logging from config
+        set_debug_logging(self._as_bool(self.get_config("debug_logging", False)))
 
         desktop = self.ctx.ServiceManager.createInstanceWithContext(
             "com.sun.star.frame.Desktop", self.ctx)
@@ -485,55 +384,52 @@ class MainJob(unohelper.Base, XJobExecutor):
             selection = model.CurrentController.getSelection()
             text_range = selection.getByIndex(0)
 
-            
             if args == "ExtendSelection":
-                # Access the current selection
                 if len(text_range.getString()) > 0:
                     try:
-                        # Prepare request using the new unified method
                         system_prompt = self.get_config("extend_selection_system_prompt", "")
                         prompt = text_range.getString()
                         max_tokens = self.get_config("extend_selection_max_tokens", 70)
-                        
                         api_type = str(self.get_config("api_type", "completions")).lower()
-                        request = self.make_api_request(prompt, system_prompt, max_tokens, api_type=api_type)
+
+                        client = self._make_client()
 
                         def append_text(chunk_text):
                             text_range.setString(text_range.getString() + chunk_text)
 
-                        self.stream_request(request, api_type, append_text)
-                                      
+                        client.stream_completion(
+                            prompt, system_prompt, max_tokens, api_type,
+                            append_text)
+
                     except Exception as e:
                         text_range = selection.getByIndex(0)
-                        # Append the user input to the selected text
                         text_range.setString(text_range.getString() + ": " + str(e))
 
             elif args == "EditSelection":
-                # Access the current selection
                 try:
                     user_input = self.input_box("Please enter edit instructions!", "Input", "")
-                    
-                    # Prepare the prompt for editing
+
                     prompt = "ORIGINAL VERSION:\n" + text_range.getString() + "\n Below is an edited version according to the following instructions. There are no comments in the edited version. The edited version is followed by the end of the document. The original version will be edited as follows to create the edited version:\n" + user_input + "\nEDITED VERSION:\n"
-                    
+
                     system_prompt = self.get_config("edit_selection_system_prompt", "")
                     max_tokens = len(text_range.getString()) + self.get_config("edit_selection_max_new_tokens", 0)
-                    
                     api_type = str(self.get_config("api_type", "completions")).lower()
-                    request = self.make_api_request(prompt, system_prompt, max_tokens, api_type=api_type)
-                    
+
+                    client = self._make_client()
+
                     text_range.setString("")
 
                     def append_text(chunk_text):
                         text_range.setString(text_range.getString() + chunk_text)
 
-                    self.stream_request(request, api_type, append_text)
+                    client.stream_completion(
+                        prompt, system_prompt, max_tokens, api_type,
+                        append_text)
 
                 except Exception as e:
                     text_range = selection.getByIndex(0)
-                    # Append the user input to the selected text
                     text_range.setString(text_range.getString() + ": " + str(e))
-            
+
             elif args == "settings":
                 try:
                     result = self.settings_box("Settings")
@@ -541,6 +437,7 @@ class MainJob(unohelper.Base, XJobExecutor):
                 except Exception as e:
                     text_range = selection.getByIndex(0)
                     text_range.setString(text_range.getString() + ":error: " + str(e))
+
         elif hasattr(model, "Sheets"):
             try:
                 sheet = model.CurrentController.ActiveSheet
@@ -551,7 +448,7 @@ class MainJob(unohelper.Base, XJobExecutor):
                         result = self.settings_box("Settings")
                         self._save_settings(result)
                     except Exception as e:
-                        log_to_file(f"Calc settings error: {str(e)}")
+                        log_to_file("Calc settings error: %s" % str(e))
                     return
 
                 user_input = ""
@@ -577,6 +474,8 @@ class MainJob(unohelper.Base, XJobExecutor):
                 except (TypeError, ValueError):
                     edit_max_new_tokens = 0
 
+                client = self._make_client()
+
                 for row in row_range:
                     for col in col_range:
                         cell = sheet.getCellByPosition(col, row)
@@ -586,31 +485,33 @@ class MainJob(unohelper.Base, XJobExecutor):
                             if not cell_text:
                                 continue
                             try:
-                                request = self.make_api_request(cell_text, extend_system_prompt, extend_max_tokens, api_type=api_type)
-
                                 def append_cell_text(chunk_text, target_cell=cell):
                                     target_cell.setString(target_cell.getString() + chunk_text)
 
-                                self.stream_request(request, api_type, append_cell_text)
+                                client.stream_completion(
+                                    cell_text, extend_system_prompt, extend_max_tokens,
+                                    api_type, append_cell_text)
                             except Exception as e:
                                 cell.setString(cell.getString() + ": " + str(e))
                         elif args == "EditSelection":
                             try:
-                                prompt =  "ORIGINAL VERSION:\n" + cell.getString() + "\n Below is an edited version according to the following instructions. Don't waste time thinking, be as fast as you can. The edited text will be a shorter or longer version of the original text based on the instructions. There are no comments in the edited version. The edited version is followed by the end of the document. The original version will be edited as follows to create the edited version:\n" + user_input + "\nEDITED VERSION:\n"
+                                prompt = "ORIGINAL VERSION:\n" + cell.getString() + "\n Below is an edited version according to the following instructions. Don't waste time thinking, be as fast as you can. The edited text will be a shorter or longer version of the original text based on the instructions. There are no comments in the edited version. The edited version is followed by the end of the document. The original version will be edited as follows to create the edited version:\n" + user_input + "\nEDITED VERSION:\n"
 
                                 max_tokens = len(cell.getString()) + edit_max_new_tokens
-                                request = self.make_api_request(prompt, edit_system_prompt, max_tokens, api_type=api_type)
 
                                 cell.setString("")
 
                                 def append_edit_text(chunk_text, target_cell=cell):
                                     target_cell.setString(target_cell.getString() + chunk_text)
 
-                                self.stream_request(request, api_type, append_edit_text)
+                                client.stream_completion(
+                                    prompt, edit_system_prompt, max_tokens,
+                                    api_type, append_edit_text)
                             except Exception as e:
                                 cell.setString(cell.getString() + ": " + str(e))
             except Exception:
                 pass
+
 # Starting from Python IDE
 def main():
     try:
@@ -622,13 +523,14 @@ def main():
             sys.exit(1)
     job = MainJob(ctx)
     job.trigger("hello")
+
 # Starting from command line
 if __name__ == "__main__":
     main()
+
 # pythonloader loads a static g_ImplementationHelper variable
 g_ImplementationHelper = unohelper.ImplementationHelper()
 g_ImplementationHelper.addImplementation(
-    MainJob,  # UNO object class
-    "org.extension.sample.do",  # implementation name (customize for yourself)
-    ("com.sun.star.task.Job",), )  # implemented services (only 1)
-# vim: set shiftwidth=4 softtabstop=4 expandtab:
+    MainJob,
+    "org.extension.localwriter.Main",
+    ("com.sun.star.task.Job",),)
